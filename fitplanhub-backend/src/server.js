@@ -18,17 +18,20 @@ const app = express();
 
 // Connect MongoDB
 connectDatabase();
-
-// CORS configuration – allows frontend to access backend API
 app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://fit-plan-hub-lovat.vercel.app/"
+      "https://fit-plan-hub-lovat.vercel.app"
     ],
-    credentials: true
+    credentials: true,
+    methods: "GET,POST,PUT,PATCH,DELETE,OPTIONS",
+    allowedHeaders: "Content-Type,Authorization",
   })
 );
+
+app.options("*", cors());
+
 
 // Body parsers
 app.use(express.json());
