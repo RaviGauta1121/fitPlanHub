@@ -1,0 +1,623 @@
+'use client';
+
+import { useState, useEffect } from 'react';
+import { planService } from '../../../lib/auth';
+import { useAuth } from '../../../context/AuthContext';
+import StatsCard from '../../../components/StatsCard';
+
+export default function TrainerDashboard() {
+  const [plans, setPlans] = useState([]);
+  const [showForm, setShowForm] = useState(false);
+  const [editingPlan, setEditingPlan] = useState(null);
+  const [formData, setFormData] = useState({
+    title: '',
+    description: '',
+    price: '',
+    duration: '',
+    category: 'general',
+    difficulty: 'beginner',
+    tags: '',
+    exercises: []
+  });
+  const { user } = useAuth();
+
+  useEffect(() => {
+    if (user?.role === 'trainer') {
+      fetchPlans();
+    }
+  }, [user]);
+
+  const fetchPlans = async () => {
+    try {
+      const response = await planService.getTrainerPlans();
+      setPlans(response.data);
+    } catch (error) {
+      console.error('Error fetching plans:', error);
+    }
+  };
+
+  const handleSubmit = async (e) => {
+    e.preventDefault();
+    try {
+      const submitData = {
+        ...formData,
+        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
+      };
+
+      if (editingPlan) {
+        await planService.updatePlan(editingPlan._id, submitData);
+        alert('Plan updated successfully!');
+      } else {
+        await planService.createPlan(submitData);
+        alert('Plan created successfully!');
+      }
+
+      resetForm();
+      fetchPlans();
+    } catch (error) {
+      alert('Error saving plan');
+    }
+  };
+
+  const handleEdit = (plan) => {
+    setEditingPlan(plan);
+    setFormData({
+      title: plan.title,
+      description: plan.description,
+      price: plan.price,
+      duration: plan.duration,
+      category: plan.category || 'general',
+      difficulty: plan.difficulty || 'beginner',
+      tags: plan.tags?.join(', ') || '',
+      exercises: plan.exercises || []
+    });
+    setShowForm(true);
+  };
+
+  const handleDelete = async (id) => {
+    if (confirm('Are you sure you want to delete this plan?')) {
+      try {
+        await planService.deletePlan(id);
+        fetchPlans();
+      } catch (error) {
+        alert('Error deleting plan');
+      }
+    }
+  };
+
+  const resetForm = () => {
+    setFormData({
+      title: '',
+      description: '',
+      price: '',
+      duration: '',
+      category: 'general',
+      difficulty: 'beginner',
+      tags: '',
+      exercises: []
+    });
+    setEditingPlan(null);
+    setShowForm(false);
+  };
+
+  const addExercise = () => {
+    setFormData({
+      ...formData,
+      exercises: [
+        ...formData.exercises,
+        { name: '', sets: '', reps: '', description: '' }
+      ]
+    });
+  };
+
+  const updateExercise = (index, field, value) => {
+    const newExercises = [...formData.exercises];
+    newExercises[index][field] = value;
+    setFormData({ ...formData, exercises: newExercises });
+  };
+
+  const removeExercise = (index) => {
+    const newExercises = formData.exercises.filter((_, i) => i !== index);
+    setFormData({ ...formData, exercises: newExercises });
+  };
+
+  if (user?.role !== 'trainer') {
+    return <div>Access denied</div>;
+  }
+
+  // Calculate stats
+  const totalPlans = plans.length;
+  const totalSubscribers = plans.reduce((sum, plan) => sum + (plan.subscriberCount || 0), 0);
+  const averageRating = plans.length > 0 
+    ? (plans.reduce((sum, plan) => sum + (plan.averageRating || 0), 0) / plans.length).toFixed(1)
+    : 0;
+  const totalRevenue = plans.reduce((sum, plan) => sum + (plan.subscriberCount || 0) * plan.price, 0);
+
+  return (
+    <div>
+      <div style={styles.header}>
+        <h1 style={styles.heading}>Trainer Dashboard</h1>
+        <button onClick={() => setShowForm(!showForm)} style={styles.button}>
+          {showForm ? 'Cancel' : '+ Create New Plan'}
+        </button>
+      </div>
+
+      {/* Statistics */}
+      <div style={styles.statsGrid}>
+        <StatsCard
+          title="Total Plans"
+          value={totalPlans}
+          icon="📋"
+        />
+        <StatsCard
+          title="Total Subscribers"
+          value={totalSubscribers}
+          icon="👥"
+        />
+        <StatsCard
+          title="Average Rating"
+          value={averageRating}
+          icon="⭐"
+          subtitle="Out of 5.0"
+        />
+        <StatsCard
+          title="Estimated Revenue"
+          value={`$${totalRevenue.toLocaleString()}`}
+          icon="💰"
+        />
+      </div>
+
+      {showForm && (
+        <div style={styles.form}>
+          <h2 style={styles.formTitle}>
+            {editingPlan ? 'Edit Plan' : 'Create New Plan'}
+          </h2>
+          <form onSubmit={handleSubmit}>
+            <input
+              type="text"
+              placeholder="Plan Title"
+              value={formData.title}
+              onChange={(e) => setFormData({...formData, title: e.target.value})}
+              style={styles.input}
+              required
+            />
+            
+            <textarea
+              placeholder="Description"
+              value={formData.description}
+              onChange={(e) => setFormData({...formData, description: e.target.value})}
+              style={styles.textarea}
+              required
+            />
+
+            <div style={styles.formRow}>
+              <input
+                type="number"
+                placeholder="Price ($)"
+                value={formData.price}
+                onChange={(e) => setFormData({...formData, price: e.target.value})}
+                style={styles.input}
+                required
+              />
+              <input
+                type="number"
+                placeholder="Duration (days)"
+                value={formData.duration}
+                onChange={(e) => setFormData({...formData, duration: e.target.value})}
+                style={styles.input}
+                required
+              />
+            </div>
+
+            <div style={styles.formRow}>
+              <select
+                value={formData.category}
+                onChange={(e) => setFormData({...formData, category: e.target.value})}
+                style={styles.input}
+              >
+                <option value="general">General Fitness</option>
+                <option value="strength">Strength Training</option>
+                <option value="cardio">Cardio</option>
+                <option value="flexibility">Flexibility</option>
+                <option value="weight_loss">Weight Loss</option>
+                <option value="muscle_gain">Muscle Gain</option>
+                <option value="endurance">Endurance</option>
+              </select>
+
+              <select
+                value={formData.difficulty}
+                onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
+                style={styles.input}
+              >
+                <option value="beginner">Beginner</option>
+                <option value="intermediate">Intermediate</option>
+                <option value="advanced">Advanced</option>
+              </select>
+            </div>
+
+            <input
+              type="text"
+              placeholder="Tags (comma separated)"
+              value={formData.tags}
+              onChange={(e) => setFormData({...formData, tags: e.target.value})}
+              style={styles.input}
+            />
+
+            {/* Exercises Section */}
+            <div style={styles.exercisesSection}>
+              <div style={styles.exercisesHeader}>
+                <h3 style={styles.exercisesTitle}>Exercises</h3>
+                <button type="button" onClick={addExercise} style={styles.addExerciseBtn}>
+                  + Add Exercise
+                </button>
+              </div>
+
+              {formData.exercises.map((exercise, index) => (
+                <div key={index} style={styles.exerciseCard}>
+                  <input
+                    type="text"
+                    placeholder="Exercise Name"
+                    value={exercise.name}
+                    onChange={(e) => updateExercise(index, 'name', e.target.value)}
+                    style={styles.input}
+                  />
+                  <div style={styles.exerciseRow}>
+                    <input
+                      type="number"
+                      placeholder="Sets"
+                      value={exercise.sets}
+                      onChange={(e) => updateExercise(index, 'sets', e.target.value)}
+                      style={styles.inputSmall}
+                    />
+                    <input
+                      type="number"
+                      placeholder="Reps"
+                      value={exercise.reps}
+                      onChange={(e) => updateExercise(index, 'reps', e.target.value)}
+                      style={styles.inputSmall}
+                    />
+                  </div>
+                  <textarea
+                    placeholder="Exercise Description"
+                    value={exercise.description}
+                    onChange={(e) => updateExercise(index, 'description', e.target.value)}
+                    style={styles.textareaSmall}
+                  />
+                  <button 
+                    type="button" 
+                    onClick={() => removeExercise(index)} 
+                    style={styles.removeExerciseBtn}
+                  >
+                    Remove Exercise
+                  </button>
+                </div>
+              ))}
+            </div>
+
+            <div style={styles.formActions}>
+              <button type="submit" style={styles.submitButton}>
+                {editingPlan ? 'Update Plan' : 'Create Plan'}
+              </button>
+              {editingPlan && (
+                <button type="button" onClick={resetForm} style={styles.cancelButton}>
+                  Cancel Edit
+                </button>
+              )}
+            </div>
+          </form>
+        </div>
+      )}
+
+      <h2 style={styles.subheading}>My Plans ({plans.length})</h2>
+      <div style={styles.grid}>
+        {plans.map(plan => (
+          <div key={plan._id} style={styles.card}>
+            <div style={styles.cardHeader}>
+              <h3 style={styles.cardTitle}>{plan.title}</h3>
+              {plan.averageRating > 0 && (
+                <div style={styles.rating}>
+                  ⭐ {plan.averageRating.toFixed(1)}
+                </div>
+              )}
+            </div>
+
+            <div style={styles.badges}>
+              <span style={styles.badge}>{plan.category || 'general'}</span>
+              <span style={styles.badge}>{plan.difficulty || 'beginner'}</span>
+            </div>
+
+            <p style={styles.description}>{plan.description}</p>
+
+            <div style={styles.planStats}>
+              <div style={styles.planStat}>
+                <span style={styles.statLabel}>Price</span>
+                <span style={styles.statValue}>${plan.price}</span>
+              </div>
+              <div style={styles.planStat}>
+                <span style={styles.statLabel}>Duration</span>
+                <span style={styles.statValue}>{plan.duration} days</span>
+              </div>
+              <div style={styles.planStat}>
+                <span style={styles.statLabel}>Subscribers</span>
+                <span style={styles.statValue}>{plan.subscriberCount || 0}</span>
+              </div>
+              <div style={styles.planStat}>
+                <span style={styles.statLabel}>Reviews</span>
+                <span style={styles.statValue}>{plan.reviewCount || 0}</span>
+              </div>
+            </div>
+
+            <div style={styles.cardActions}>
+              <button onClick={() => handleEdit(plan)} style={styles.editButton}>
+                Edit
+              </button>
+              <button onClick={() => handleDelete(plan._id)} style={styles.deleteButton}>
+                Delete
+              </button>
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+const styles = {
+  header: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '2rem'
+  },
+  heading: {
+    fontSize: '2rem',
+    margin: 0
+  },
+  button: {
+    backgroundColor: '#2563eb',
+    color: 'white',
+    padding: '0.75rem 1.5rem',
+    borderRadius: '0.5rem',
+    border: 'none',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '1rem'
+  },
+  statsGrid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fit, minmax(250px, 1fr))',
+    gap: '1.5rem',
+    marginBottom: '2rem'
+  },
+  form: {
+    backgroundColor: 'white',
+    padding: '2rem',
+    borderRadius: '0.5rem',
+    marginBottom: '2rem',
+    boxShadow: '0 4px 6px rgba(0,0,0,0.1)'
+  },
+  formTitle: {
+    fontSize: '1.5rem',
+    marginBottom: '1.5rem',
+    color: '#1f2937'
+  },
+  formRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '1rem',
+    marginBottom: '1rem'
+  },
+  input: {
+    width: '100%',
+    padding: '0.75rem',
+    marginBottom: '1rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.25rem',
+    fontSize: '1rem',
+    boxSizing: 'border-box'
+  },
+  inputSmall: {
+    padding: '0.5rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.25rem',
+    fontSize: '0.875rem'
+  },
+  textarea: {
+    width: '100%',
+    padding: '0.75rem',
+    marginBottom: '1rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.25rem',
+    fontSize: '1rem',
+    minHeight: '100px',
+    resize: 'vertical',
+    boxSizing: 'border-box'
+  },
+  textareaSmall: {
+    width: '100%',
+    padding: '0.5rem',
+    marginBottom: '0.5rem',
+    border: '1px solid #d1d5db',
+    borderRadius: '0.25rem',
+    fontSize: '0.875rem',
+    minHeight: '60px',
+    resize: 'vertical',
+    boxSizing: 'border-box'
+  },
+  exercisesSection: {
+    backgroundColor: '#f9fafb',
+    padding: '1.5rem',
+    borderRadius: '0.5rem',
+    marginBottom: '1rem'
+  },
+  exercisesHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: '1rem'
+  },
+  exercisesTitle: {
+    fontSize: '1.125rem',
+    fontWeight: '600',
+    margin: 0
+  },
+  addExerciseBtn: {
+    backgroundColor: '#2563eb',
+    color: 'white',
+    padding: '0.5rem 1rem',
+    border: 'none',
+    borderRadius: '0.25rem',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    fontWeight: '600'
+  },
+  exerciseCard: {
+    backgroundColor: 'white',
+    padding: '1rem',
+    borderRadius: '0.5rem',
+    marginBottom: '1rem',
+    border: '1px solid #e5e7eb'
+  },
+  exerciseRow: {
+    display: 'grid',
+    gridTemplateColumns: '1fr 1fr',
+    gap: '0.5rem',
+    marginBottom: '0.5rem'
+  },
+  removeExerciseBtn: {
+    backgroundColor: '#dc2626',
+    color: 'white',
+    padding: '0.5rem 1rem',
+    border: 'none',
+    borderRadius: '0.25rem',
+    cursor: 'pointer',
+    fontSize: '0.875rem',
+    width: '100%'
+  },
+  formActions: {
+    display: 'flex',
+    gap: '1rem'
+  },
+  submitButton: {
+    flex: 1,
+    backgroundColor: '#10b981',
+    color: 'white',
+    padding: '1rem',
+    border: 'none',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '1rem'
+  },
+  cancelButton: {
+    flex: 1,
+    backgroundColor: '#6b7280',
+    color: 'white',
+    padding: '1rem',
+    border: 'none',
+    borderRadius: '0.5rem',
+    cursor: 'pointer',
+    fontWeight: '600',
+    fontSize: '1rem'
+  },
+  subheading: {
+    fontSize: '1.5rem',
+    marginTop: '2rem',
+    marginBottom: '1.5rem'
+  },
+  grid: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(auto-fill, minmax(350px, 1fr))',
+    gap: '1.5rem'
+  },
+  card: {
+    backgroundColor: 'white',
+    padding: '1.5rem',
+    borderRadius: '0.5rem',
+    boxShadow: '0 1px 3px rgba(0,0,0,0.1)'
+  },
+  cardHeader: {
+    display: 'flex',
+    justifyContent: 'space-between',
+    alignItems: 'flex-start',
+    marginBottom: '0.75rem'
+  },
+  cardTitle: {
+    fontSize: '1.25rem',
+    fontWeight: 'bold',
+    margin: 0,
+    flex: 1
+  },
+  rating: {
+    fontSize: '0.875rem',
+    color: '#f59e0b',
+    fontWeight: '600'
+  },
+  badges: {
+    display: 'flex',
+    gap: '0.5rem',
+    marginBottom: '1rem'
+  },
+  badge: {
+    backgroundColor: '#dbeafe',
+    color: '#1e40af',
+    padding: '0.25rem 0.75rem',
+    borderRadius: '9999px',
+    fontSize: '0.75rem',
+    fontWeight: '600',
+    textTransform: 'capitalize'
+  },
+  description: {
+    fontSize: '0.875rem',
+    color: '#6b7280',
+    lineHeight: '1.5',
+    marginBottom: '1rem'
+  },
+  planStats: {
+    display: 'grid',
+    gridTemplateColumns: 'repeat(4, 1fr)',
+    gap: '1rem',
+    marginBottom: '1rem',
+    paddingTop: '1rem',
+    borderTop: '1px solid #e5e7eb'
+  },
+  planStat: {
+    display: 'flex',
+    flexDirection: 'column',
+    alignItems: 'center'
+  },
+  statLabel: {
+    fontSize: '0.75rem',
+    color: '#9ca3af',
+    marginBottom: '0.25rem'
+  },
+  statValue: {
+    fontSize: '1rem',
+    fontWeight: 'bold',
+    color: '#1f2937'
+  },
+  cardActions: {
+    display: 'flex',
+    gap: '0.5rem'
+  },
+  editButton: {
+    flex: 1,
+    backgroundColor: '#f3f4f6',
+    color: '#1f2937',
+    padding: '0.75rem',
+    border: 'none',
+    borderRadius: '0.25rem',
+    cursor: 'pointer',
+    fontWeight: '600'
+  },
+  deleteButton: {
+    flex: 1,
+    backgroundColor: '#dc2626',
+    color: 'white',
+    padding: '0.75rem',
+    border: 'none',
+    borderRadius: '0.25rem',
+    cursor: 'pointer',
+    fontWeight: '600'
+  }
+};
