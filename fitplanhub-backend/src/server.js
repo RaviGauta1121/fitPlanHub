@@ -24,7 +24,7 @@ app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "https://fitplanhub-frontend.onrender.com"
+      "https://fit-plan-hub-lovat.vercel.app/"
     ],
     credentials: true
   })
