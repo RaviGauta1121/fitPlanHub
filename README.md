@@ -1,4 +1,4 @@
-Perfect! Let me update the README with your live link and add a live demo section:
+
 
 ```markdown
 # FitPlanHub 🏋️‍♂️
@@ -441,21 +441,6 @@ This project is licensed under the ISC License.
 - GitHub: [@RaviGauta1121](https://github.com/RaviGauta1121)
 - Project Link: [https://github.com/RaviGauta1121/fitPlanHub](https://github.com/RaviGauta1121/fitPlanHub)
 - Live Demo: [https://fit-plan-hub-lovat.vercel.app/](https://fit-plan-hub-lovat.vercel.app/)
-
-## 🙏 Acknowledgments
-
-- Next.js team for the amazing framework
-- MongoDB for the database
-- Express.js community
-- Vercel for frontend hosting
-- Render for backend hosting
-- All contributors and testers
-
-## 📞 Support
-
-For support, email ravigauta1121@gmail.com or open an issue in the GitHub repository.
-
----
 
 **Made with ❤️ and 💪 for the fitness community**
 
