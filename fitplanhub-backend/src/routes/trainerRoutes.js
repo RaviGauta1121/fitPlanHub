@@ -14,14 +14,14 @@ const { checkRole } = require('../middleware/roleMiddleware');
 
 const router = express.Router();
 
-// SPECIFIC ROUTES FIRST (before /:id)
+
 router.get('/', protect, getAllTrainers);
 router.get('/followed', protect, getFollowedTrainers);
 router.get('/feed', protect, getFeed);
 router.get('/my-followers', protect, checkRole('trainer'), getMyFollowers);
 router.get('/my-subscribers', protect, checkRole('trainer'), getMySubscribers);
 
-// DYNAMIC ROUTES LAST
+
 router.get('/:id', protect, getTrainerById);
 router.post('/:id/follow', protect, followTrainer);
 router.delete('/:id/unfollow', protect, unfollowTrainer);

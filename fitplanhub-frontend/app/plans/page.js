@@ -19,17 +19,14 @@ export default function Plans() {
   const fetchPlans = async (searchFilters = {}) => {
     try {
       setLoading(true);
-      let response;
-      
-      if (Object.keys(searchFilters).length > 0) {
-        response = await planService.searchPlans(searchFilters);
-      } else {
-        response = await planService.getAllPlans();
-      }
-      
-      setPlans(response.data);
-    } catch (error) {
-      console.error('Error fetching plans:', error);
+      const response =
+        Object.keys(searchFilters).length > 0
+          ? await planService.searchPlans(searchFilters)
+          : await planService.getAllPlans();
+
+      setPlans(response.data || []);
+    } catch (err) {
+      console.error('Error fetching plans:', err);
     } finally {
       setLoading(false);
     }
@@ -45,38 +42,40 @@ export default function Plans() {
       await subscriptionService.subscribe(planId);
       alert('Subscription successful!');
       fetchPlans(filters);
-    } catch (error) {
-      alert(error.response?.data?.message || 'Subscription failed');
+    } catch (err) {
+      alert(err.response?.data?.message || 'Subscription failed');
     }
   };
 
-  if (loading) return <div style={styles.loading}>Loading plans...</div>;
+  if (loading) {
+    return <div style={styles.loading}>Loading plans…</div>;
+  }
 
   return (
-    <div>
+    <div style={styles.container}>
       <h1 style={styles.heading}>Browse Fitness Plans</h1>
-      
+
       <SearchFilter onSearch={handleSearch} />
 
-      <div style={styles.results}>
-        <p style={styles.count}>
-          {plans.length} plan{plans.length !== 1 ? 's' : ''} found
-        </p>
-      </div>
+      <p style={styles.count}>
+        {plans.length} plan{plans.length !== 1 && 's'} found
+      </p>
 
       {plans.length === 0 ? (
         <div style={styles.empty}>
-          <p>No plans found matching your criteria</p>
+          <span>😕</span>
+          <p>No plans match your filters</p>
         </div>
       ) : (
         <div style={styles.grid}>
           {plans.map(plan => (
-            <PlanCard 
-              key={plan._id}
-              plan={plan}
-              showSubscribe={user?.role === 'user'}
-              onSubscribe={handleSubscribe}
-            />
+            <div key={plan._id} style={styles.cardWrap}>
+              <PlanCard
+                plan={plan}
+                showSubscribe={user?.role === 'user'}
+                onSubscribe={handleSubscribe}
+              />
+            </div>
           ))}
         </div>
       )}
@@ -85,34 +84,41 @@ export default function Plans() {
 }
 
 const styles = {
+  container: {
+    maxWidth: '1400px',
+    margin: '0 auto',
+    padding: '2rem 1rem'
+  },
   heading: {
-    fontSize: '2rem',
+    fontSize: '2.2rem',
+    fontWeight: '800',
     marginBottom: '1rem'
   },
   loading: {
     textAlign: 'center',
-    padding: '3rem',
-    fontSize: '1.2rem',
-    color: '#6b7280'
-  },
-  results: {
-    marginBottom: '1rem'
+    padding: '4rem',
+    fontSize: '1.1rem',
+    color: '#6B7280'
   },
   count: {
     fontSize: '0.875rem',
-    color: '#6b7280',
-    fontWeight: '600'
+    color: '#6B7280',
+    fontWeight: '600',
+    marginBottom: '1.5rem'
   },
   empty: {
     textAlign: 'center',
-    padding: '3rem',
-    backgroundColor: 'white',
-    borderRadius: '0.5rem',
-    color: '#6b7280'
+    padding: '4rem',
+    background: 'white',
+    borderRadius: '16px',
+    border: '1px solid #E5E7EB'
   },
   grid: {
     display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fill, minmax(300px, 1fr))',
-    gap: '1.5rem'
+    gridTemplateColumns: 'repeat(auto-fill, minmax(320px, 1fr))',
+    gap: '1.75rem'
+  },
+  cardWrap: {
+    transition: 'transform 0.25s ease'
   }
 };

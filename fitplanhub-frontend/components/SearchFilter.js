@@ -3,30 +3,38 @@
 import { useState } from 'react';
 import { theme } from '../lib/theme';
 
+// Simple search + filter bar for plans.
+// Kept local state here to avoid spamming parent on every keystroke.
 export default function SearchFilter({ onSearch }) {
-  const [filters, setFilters] = useState({
+
+  // Default filters live here so reset + init stay in sync
+  const defaultFilters = {
     keyword: '',
     category: '',
     difficulty: '',
     minRating: '',
     sort: 'latest'
-  });
+  };
+
+  const [filters, setFilters] = useState(defaultFilters);
 
   const handleSubmit = (e) => {
     e.preventDefault();
     onSearch(filters);
   };
 
+  // Reset everything back to defaults
   const handleReset = () => {
-    const resetFilters = {
-      keyword: '',
-      category: '',
-      difficulty: '',
-      minRating: '',
-      sort: 'latest'
-    };
-    setFilters(resetFilters);
-    onSearch(resetFilters);
+    setFilters(defaultFilters);
+    onSearch(defaultFilters);
+  };
+
+  // Generic helper so we don't repeat setFilters everywhere
+  const updateFilter = (key, value) => {
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
   return (
@@ -36,13 +44,13 @@ export default function SearchFilter({ onSearch }) {
           type="text"
           placeholder="Search plans..."
           value={filters.keyword}
-          onChange={(e) => setFilters({...filters, keyword: e.target.value})}
+          onChange={(e) => updateFilter('keyword', e.target.value)}
           style={styles.input}
         />
 
         <select
           value={filters.category}
-          onChange={(e) => setFilters({...filters, category: e.target.value})}
+          onChange={(e) => updateFilter('category', e.target.value)}
           style={styles.select}
         >
           <option value="">All Categories</option>
@@ -57,7 +65,7 @@ export default function SearchFilter({ onSearch }) {
 
         <select
           value={filters.difficulty}
-          onChange={(e) => setFilters({...filters, difficulty: e.target.value})}
+          onChange={(e) => updateFilter('difficulty', e.target.value)}
           style={styles.select}
         >
           <option value="">All Levels</option>
@@ -68,7 +76,7 @@ export default function SearchFilter({ onSearch }) {
 
         <select
           value={filters.minRating}
-          onChange={(e) => setFilters({...filters, minRating: e.target.value})}
+          onChange={(e) => updateFilter('minRating', e.target.value)}
           style={styles.select}
         >
           <option value="">Any Rating</option>
@@ -79,7 +87,7 @@ export default function SearchFilter({ onSearch }) {
 
         <select
           value={filters.sort}
-          onChange={(e) => setFilters({...filters, sort: e.target.value})}
+          onChange={(e) => updateFilter('sort', e.target.value)}
           style={styles.select}
         >
           <option value="latest">Latest</option>
@@ -89,8 +97,17 @@ export default function SearchFilter({ onSearch }) {
           <option value="price_high">Price: High to Low</option>
         </select>
 
-        <button type="submit" style={styles.button}>Search</button>
-        <button type="button" onClick={handleReset} style={styles.resetButton}>Reset</button>
+        <button type="submit" style={styles.button}>
+          Search
+        </button>
+
+        <button
+          type="button"
+          onClick={handleReset}
+          style={styles.resetButton}
+        >
+          Reset
+        </button>
       </form>
     </div>
   );

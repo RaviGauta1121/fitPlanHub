@@ -1,365 +1,432 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { planService } from '../../../lib/auth';
 import { useAuth } from '../../../context/AuthContext';
 import StatsCard from '../../../components/StatsCard';
 
+// Trainer-only dashboard for managing plans
 export default function TrainerDashboard() {
-  const [plans, setPlans] = useState([]);
-  const [showForm, setShowForm] = useState(false);
-  const [editingPlan, setEditingPlan] = useState(null);
-  const [formData, setFormData] = useState({
-    title: '',
-    description: '',
-    price: '',
-    duration: '',
-    category: 'general',
-    difficulty: 'beginner',
-    tags: '',
-    exercises: []
-  });
-  const { user } = useAuth();
+const { user } = useAuth();
 
-  useEffect(() => {
-    if (user?.role === 'trainer') {
-      fetchPlans();
-    }
-  }, [user]);
+// Core state
+const [plans, setPlans] = useState([]);
+const [showForm, setShowForm] = useState(false);
+const [editing, setEditing] = useState(null);
 
-  const fetchPlans = async () => {
-    try {
-      const response = await planService.getTrainerPlans();
-      setPlans(response.data);
-    } catch (error) {
-      console.error('Error fetching plans:', error);
-    }
-  };
+// Form state (a bit chunky, but manageable for now)
+const [form, setForm] = useState({
+title: '',
+description: '',
+price: '',
+duration: '',
+category: 'general',
+difficulty: 'beginner',
+tags: '',
+exercises: []
+});
 
-  const handleSubmit = async (e) => {
-    e.preventDefault();
-    try {
-      const submitData = {
-        ...formData,
-        tags: formData.tags.split(',').map(tag => tag.trim()).filter(tag => tag)
-      };
+// Load plans once trainer is confirmed
+useEffect(() => {
+if (user?.role === 'trainer') {
+loadPlans();
+}
+}, [user]);
 
-      if (editingPlan) {
-        await planService.updatePlan(editingPlan._id, submitData);
-        alert('Plan updated successfully!');
-      } else {
-        await planService.createPlan(submitData);
-        alert('Plan created successfully!');
-      }
+const loadPlans = async () => {
+try {
+const res = await planService.getTrainerPlans();
+setPlans(res.data || []);
+} catch (err) {
+console.error('Failed to fetch trainer plans:', err);
+}
+};
 
-      resetForm();
-      fetchPlans();
-    } catch (error) {
-      alert('Error saving plan');
-    }
-  };
+const handleSubmit = async (e) => {
+e.preventDefault();
 
-  const handleEdit = (plan) => {
-    setEditingPlan(plan);
-    setFormData({
-      title: plan.title,
-      description: plan.description,
-      price: plan.price,
-      duration: plan.duration,
-      category: plan.category || 'general',
-      difficulty: plan.difficulty || 'beginner',
-      tags: plan.tags?.join(', ') || '',
-      exercises: plan.exercises || []
-    });
-    setShowForm(true);
-  };
+// Convert comma-separated tags into array
+const payload = {
+  ...form,
+  tags: form.tags
+    .split(',')
+    .map(t => t.trim())
+    .filter(Boolean)
+};
 
-  const handleDelete = async (id) => {
-    if (confirm('Are you sure you want to delete this plan?')) {
-      try {
-        await planService.deletePlan(id);
-        fetchPlans();
-      } catch (error) {
-        alert('Error deleting plan');
-      }
-    }
-  };
-
-  const resetForm = () => {
-    setFormData({
-      title: '',
-      description: '',
-      price: '',
-      duration: '',
-      category: 'general',
-      difficulty: 'beginner',
-      tags: '',
-      exercises: []
-    });
-    setEditingPlan(null);
-    setShowForm(false);
-  };
-
-  const addExercise = () => {
-    setFormData({
-      ...formData,
-      exercises: [
-        ...formData.exercises,
-        { name: '', sets: '', reps: '', description: '' }
-      ]
-    });
-  };
-
-  const updateExercise = (index, field, value) => {
-    const newExercises = [...formData.exercises];
-    newExercises[index][field] = value;
-    setFormData({ ...formData, exercises: newExercises });
-  };
-
-  const removeExercise = (index) => {
-    const newExercises = formData.exercises.filter((_, i) => i !== index);
-    setFormData({ ...formData, exercises: newExercises });
-  };
-
-  if (user?.role !== 'trainer') {
-    return <div>Access denied</div>;
+try {
+  if (editing) {
+    await planService.updatePlan(editing._id, payload);
+    alert('Plan updated successfully!');
+  } else {
+    await planService.createPlan(payload);
+    alert('Plan created successfully!');
   }
 
-  // Calculate stats
-  const totalPlans = plans.length;
-  const totalSubscribers = plans.reduce((sum, plan) => sum + (plan.subscriberCount || 0), 0);
-  const averageRating = plans.length > 0 
-    ? (plans.reduce((sum, plan) => sum + (plan.averageRating || 0), 0) / plans.length).toFixed(1)
-    : 0;
-  const totalRevenue = plans.reduce((sum, plan) => sum + (plan.subscriberCount || 0) * plan.price, 0);
+  resetForm();
+  loadPlans();
+} catch (err) {
+  console.error('Save plan error:', err);
+  alert('Error saving plan');
+}
 
-  return (
-    <div>
-      <div style={styles.header}>
-        <h1 style={styles.heading}>Trainer Dashboard</h1>
-        <button onClick={() => setShowForm(!showForm)} style={styles.button}>
-          {showForm ? 'Cancel' : '+ Create New Plan'}
-        </button>
-      </div>
 
-      {/* Statistics */}
-      <div style={styles.statsGrid}>
-        <StatsCard
-          title="Total Plans"
-          value={totalPlans}
-          icon="📋"
+};
+
+const handleEdit = (plan) => {
+setEditing(plan);
+setForm({
+title: plan.title,
+description: plan.description,
+price: plan.price,
+duration: plan.duration,
+category: plan.category || 'general',
+difficulty: plan.difficulty || 'beginner',
+tags: plan.tags?.join(', ') || '',
+exercises: plan.exercises || []
+});
+setShowForm(true);
+};
+
+const handleDelete = async (planId) => {
+if (!confirm('Are you sure you want to delete this plan?')) return;
+
+try {
+  await planService.deletePlan(planId);
+  loadPlans();
+} catch (err) {
+  alert('Error deleting plan');
+}
+
+
+};
+
+const resetForm = () => {
+setForm({
+title: '',
+description: '',
+price: '',
+duration: '',
+category: 'general',
+difficulty: 'beginner',
+tags: '',
+exercises: []
+});
+setEditing(null);
+setShowForm(false);
+};
+
+// Exercise helpers (not super elegant, but clear)
+const addExercise = () => {
+setForm(prev => ({
+...prev,
+exercises: [
+...prev.exercises,
+{ name: '', sets: '', reps: '', description: '' }
+]
+}));
+};
+
+const updateExercise = (idx, key, value) => {
+const copy = [...form.exercises];
+copy[idx][key] = value;
+setForm({ ...form, exercises: copy });
+};
+
+const removeExercise = (idx) => {
+setForm({
+...form,
+exercises: form.exercises.filter((_, i) => i !== idx)
+});
+};
+
+// Safety check
+if (user?.role !== 'trainer') {
+return <div>Access denied</div>;
+}
+
+// Dashboard stats (kept inline for readability)
+const totalPlans = plans.length;
+const totalSubscribers = plans.reduce(
+(sum, p) => sum + (p.subscriberCount || 0),
+0
+);
+const averageRating =
+plans.length > 0
+? (
+plans.reduce((sum, p) => sum + (p.averageRating || 0), 0) /
+plans.length
+).toFixed(1)
+: 0;
+const totalRevenue = plans.reduce(
+(sum, p) => sum + (p.subscriberCount || 0) * p.price,
+0
+);
+
+return (
+<div>
+<div style={styles.header}>
+<h1 style={styles.heading}>Trainer Dashboard</h1>
+<button
+style={styles.button}
+onClick={() => setShowForm(!showForm)}
+>
+{showForm ? 'Cancel' : '+ Create New Plan'}
+</button>
+</div>
+
+  {/* Stats */}
+  <div style={styles.statsGrid}>
+    <StatsCard title="Total Plans" value={totalPlans} icon="📋" />
+    <StatsCard title="Total Subscribers" value={totalSubscribers} icon="👥" />
+    <StatsCard
+      title="Average Rating"
+      value={averageRating}
+      icon="⭐"
+      subtitle="Out of 5.0"
+    />
+    <StatsCard
+      title="Estimated Revenue"
+      value={`$${totalRevenue.toLocaleString()}`}
+      icon="💰"
+    />
+  </div>
+
+  {showForm && (
+    <div style={styles.form}>
+      <h2 style={styles.formTitle}>
+        {editing ? 'Edit Plan' : 'Create New Plan'}
+      </h2>
+
+      <form onSubmit={handleSubmit}>
+        <input
+          placeholder="Plan Title"
+          value={form.title}
+          onChange={(e) => setForm({ ...form, title: e.target.value })}
+          style={styles.input}
+          required
         />
-        <StatsCard
-          title="Total Subscribers"
-          value={totalSubscribers}
-          icon="👥"
+
+        <textarea
+          placeholder="Description"
+          value={form.description}
+          onChange={(e) => setForm({ ...form, description: e.target.value })}
+          style={styles.textarea}
+          required
         />
-        <StatsCard
-          title="Average Rating"
-          value={averageRating}
-          icon="⭐"
-          subtitle="Out of 5.0"
-        />
-        <StatsCard
-          title="Estimated Revenue"
-          value={`$${totalRevenue.toLocaleString()}`}
-          icon="💰"
-        />
-      </div>
 
-      {showForm && (
-        <div style={styles.form}>
-          <h2 style={styles.formTitle}>
-            {editingPlan ? 'Edit Plan' : 'Create New Plan'}
-          </h2>
-          <form onSubmit={handleSubmit}>
-            <input
-              type="text"
-              placeholder="Plan Title"
-              value={formData.title}
-              onChange={(e) => setFormData({...formData, title: e.target.value})}
-              style={styles.input}
-              required
-            />
-            
-            <textarea
-              placeholder="Description"
-              value={formData.description}
-              onChange={(e) => setFormData({...formData, description: e.target.value})}
-              style={styles.textarea}
-              required
-            />
-
-            <div style={styles.formRow}>
-              <input
-                type="number"
-                placeholder="Price ($)"
-                value={formData.price}
-                onChange={(e) => setFormData({...formData, price: e.target.value})}
-                style={styles.input}
-                required
-              />
-              <input
-                type="number"
-                placeholder="Duration (days)"
-                value={formData.duration}
-                onChange={(e) => setFormData({...formData, duration: e.target.value})}
-                style={styles.input}
-                required
-              />
-            </div>
-
-            <div style={styles.formRow}>
-              <select
-                value={formData.category}
-                onChange={(e) => setFormData({...formData, category: e.target.value})}
-                style={styles.input}
-              >
-                <option value="general">General Fitness</option>
-                <option value="strength">Strength Training</option>
-                <option value="cardio">Cardio</option>
-                <option value="flexibility">Flexibility</option>
-                <option value="weight_loss">Weight Loss</option>
-                <option value="muscle_gain">Muscle Gain</option>
-                <option value="endurance">Endurance</option>
-              </select>
-
-              <select
-                value={formData.difficulty}
-                onChange={(e) => setFormData({...formData, difficulty: e.target.value})}
-                style={styles.input}
-              >
-                <option value="beginner">Beginner</option>
-                <option value="intermediate">Intermediate</option>
-                <option value="advanced">Advanced</option>
-              </select>
-            </div>
-
-            <input
-              type="text"
-              placeholder="Tags (comma separated)"
-              value={formData.tags}
-              onChange={(e) => setFormData({...formData, tags: e.target.value})}
-              style={styles.input}
-            />
-
-            {/* Exercises Section */}
-            <div style={styles.exercisesSection}>
-              <div style={styles.exercisesHeader}>
-                <h3 style={styles.exercisesTitle}>Exercises</h3>
-                <button type="button" onClick={addExercise} style={styles.addExerciseBtn}>
-                  + Add Exercise
-                </button>
-              </div>
-
-              {formData.exercises.map((exercise, index) => (
-                <div key={index} style={styles.exerciseCard}>
-                  <input
-                    type="text"
-                    placeholder="Exercise Name"
-                    value={exercise.name}
-                    onChange={(e) => updateExercise(index, 'name', e.target.value)}
-                    style={styles.input}
-                  />
-                  <div style={styles.exerciseRow}>
-                    <input
-                      type="number"
-                      placeholder="Sets"
-                      value={exercise.sets}
-                      onChange={(e) => updateExercise(index, 'sets', e.target.value)}
-                      style={styles.inputSmall}
-                    />
-                    <input
-                      type="number"
-                      placeholder="Reps"
-                      value={exercise.reps}
-                      onChange={(e) => updateExercise(index, 'reps', e.target.value)}
-                      style={styles.inputSmall}
-                    />
-                  </div>
-                  <textarea
-                    placeholder="Exercise Description"
-                    value={exercise.description}
-                    onChange={(e) => updateExercise(index, 'description', e.target.value)}
-                    style={styles.textareaSmall}
-                  />
-                  <button 
-                    type="button" 
-                    onClick={() => removeExercise(index)} 
-                    style={styles.removeExerciseBtn}
-                  >
-                    Remove Exercise
-                  </button>
-                </div>
-              ))}
-            </div>
-
-            <div style={styles.formActions}>
-              <button type="submit" style={styles.submitButton}>
-                {editingPlan ? 'Update Plan' : 'Create Plan'}
-              </button>
-              {editingPlan && (
-                <button type="button" onClick={resetForm} style={styles.cancelButton}>
-                  Cancel Edit
-                </button>
-              )}
-            </div>
-          </form>
+        <div style={styles.formRow}>
+          <input
+            type="number"
+            placeholder="Price ($)"
+            value={form.price}
+            onChange={(e) => setForm({ ...form, price: e.target.value })}
+            style={styles.input}
+            required
+          />
+          <input
+            type="number"
+            placeholder="Duration (days)"
+            value={form.duration}
+            onChange={(e) => setForm({ ...form, duration: e.target.value })}
+            style={styles.input}
+            required
+          />
         </div>
-      )}
 
-      <h2 style={styles.subheading}>My Plans ({plans.length})</h2>
-      <div style={styles.grid}>
-        {plans.map(plan => (
-          <div key={plan._id} style={styles.card}>
-            <div style={styles.cardHeader}>
-              <h3 style={styles.cardTitle}>{plan.title}</h3>
-              {plan.averageRating > 0 && (
-                <div style={styles.rating}>
-                  ⭐ {plan.averageRating.toFixed(1)}
-                </div>
-              )}
-            </div>
+        <div style={styles.formRow}>
+          <select
+            value={form.category}
+            onChange={(e) => setForm({ ...form, category: e.target.value })}
+            style={styles.input}
+          >
+            <option value="general">General Fitness</option>
+            <option value="strength">Strength Training</option>
+            <option value="cardio">Cardio</option>
+            <option value="flexibility">Flexibility</option>
+            <option value="weight_loss">Weight Loss</option>
+            <option value="muscle_gain">Muscle Gain</option>
+            <option value="endurance">Endurance</option>
+          </select>
 
-            <div style={styles.badges}>
-              <span style={styles.badge}>{plan.category || 'general'}</span>
-              <span style={styles.badge}>{plan.difficulty || 'beginner'}</span>
-            </div>
+          <select
+            value={form.difficulty}
+            onChange={(e) =>
+              setForm({ ...form, difficulty: e.target.value })
+            }
+            style={styles.input}
+          >
+            <option value="beginner">Beginner</option>
+            <option value="intermediate">Intermediate</option>
+            <option value="advanced">Advanced</option>
+          </select>
+        </div>
 
-            <p style={styles.description}>{plan.description}</p>
+        <input
+          placeholder="Tags (comma separated)"
+          value={form.tags}
+          onChange={(e) => setForm({ ...form, tags: e.target.value })}
+          style={styles.input}
+        />
 
-            <div style={styles.planStats}>
-              <div style={styles.planStat}>
-                <span style={styles.statLabel}>Price</span>
-                <span style={styles.statValue}>${plan.price}</span>
+        {/* Exercises */}
+        <div style={styles.exercisesSection}>
+          <div style={styles.exercisesHeader}>
+            <h3 style={styles.exercisesTitle}>Exercises</h3>
+            <button
+              type="button"
+              onClick={addExercise}
+              style={styles.addExerciseBtn}
+            >
+              + Add Exercise
+            </button>
+          </div>
+
+          {form.exercises.map((ex, i) => (
+            <div key={i} style={styles.exerciseCard}>
+              <input
+                placeholder="Exercise Name"
+                value={ex.name}
+                onChange={(e) =>
+                  updateExercise(i, 'name', e.target.value)
+                }
+                style={styles.input}
+              />
+
+              <div style={styles.exerciseRow}>
+                <input
+                  type="number"
+                  placeholder="Sets"
+                  value={ex.sets}
+                  onChange={(e) =>
+                    updateExercise(i, 'sets', e.target.value)
+                  }
+                  style={styles.inputSmall}
+                />
+                <input
+                  type="number"
+                  placeholder="Reps"
+                  value={ex.reps}
+                  onChange={(e) =>
+                    updateExercise(i, 'reps', e.target.value)
+                  }
+                  style={styles.inputSmall}
+                />
               </div>
-              <div style={styles.planStat}>
-                <span style={styles.statLabel}>Duration</span>
-                <span style={styles.statValue}>{plan.duration} days</span>
-              </div>
-              <div style={styles.planStat}>
-                <span style={styles.statLabel}>Subscribers</span>
-                <span style={styles.statValue}>{plan.subscriberCount || 0}</span>
-              </div>
-              <div style={styles.planStat}>
-                <span style={styles.statLabel}>Reviews</span>
-                <span style={styles.statValue}>{plan.reviewCount || 0}</span>
-              </div>
-            </div>
 
-            <div style={styles.cardActions}>
-              <button onClick={() => handleEdit(plan)} style={styles.editButton}>
-                Edit
+              <textarea
+                placeholder="Exercise Description"
+                value={ex.description}
+                onChange={(e) =>
+                  updateExercise(i, 'description', e.target.value)
+                }
+                style={styles.textareaSmall}
+              />
+
+              <button
+                type="button"
+                onClick={() => removeExercise(i)}
+                style={styles.removeExerciseBtn}
+              >
+                Remove Exercise
               </button>
-              <button onClick={() => handleDelete(plan._id)} style={styles.deleteButton}>
-                Delete
-              </button>
+            </div>
+          ))}
+        </div>
+
+        <div style={styles.formActions}>
+          <button type="submit" style={styles.submitButton}>
+            {editing ? 'Update Plan' : 'Create Plan'}
+          </button>
+
+          {editing && (
+            <button
+              type="button"
+              onClick={resetForm}
+              style={styles.cancelButton}
+            >
+              Cancel Edit
+            </button>
+          )}
+        </div>
+      </form>
+    </div>
+  )}
+
+  <h2 style={styles.subheading}>My Plans ({plans.length})</h2>
+
+  <div style={styles.grid}>
+    {plans.map(plan => {
+      const ratingVisible = plan.averageRating > 0;
+      return (
+        <div key={plan._id} style={styles.card}>
+          <div style={styles.cardHeader}>
+            <h3 style={styles.cardTitle}>{plan.title}</h3>
+            {ratingVisible && (
+              <div style={styles.rating}>
+                ⭐ {plan.averageRating.toFixed(1)}
+              </div>
+            )}
+          </div>
+
+          <div style={styles.badges}>
+            <span style={styles.badge}>
+              {plan.category || 'general'}
+            </span>
+            <span style={styles.badge}>
+              {plan.difficulty || 'beginner'}
+            </span>
+          </div>
+
+          <p style={styles.description}>{plan.description}</p>
+
+          <div style={styles.planStats}>
+            <div style={styles.planStat}>
+              <span style={styles.statLabel}>Price</span>
+              <span style={styles.statValue}>${plan.price}</span>
+            </div>
+            <div style={styles.planStat}>
+              <span style={styles.statLabel}>Duration</span>
+              <span style={styles.statValue}>
+                {plan.duration} days
+              </span>
+            </div>
+            <div style={styles.planStat}>
+              <span style={styles.statLabel}>Subscribers</span>
+              <span style={styles.statValue}>
+                {plan.subscriberCount || 0}
+              </span>
+            </div>
+            <div style={styles.planStat}>
+              <span style={styles.statLabel}>Reviews</span>
+              <span style={styles.statValue}>
+                {plan.reviewCount || 0}
+              </span>
             </div>
           </div>
-        ))}
-      </div>
-    </div>
-  );
+
+          <div style={styles.cardActions}>
+            <button
+              onClick={() => handleEdit(plan)}
+              style={styles.editButton}
+            >
+              Edit
+            </button>
+            <button
+              onClick={() => handleDelete(plan._id)}
+              style={styles.deleteButton}
+            >
+              Delete
+            </button>
+          </div>
+        </div>
+      );
+    })}
+  </div>
+</div>
+
+
+);
 }
 
 const styles = {

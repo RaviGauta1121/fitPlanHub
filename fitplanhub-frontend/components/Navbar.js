@@ -5,65 +5,72 @@ import { useAuth } from '../context/AuthContext';
 import { useState, useEffect, useRef } from 'react';
 import { notificationService } from '../lib/auth';
 
+// Navbar ended up a bit big, but I prefer keeping desktop + mobile logic together
 export default function Navbar() {
   const { user, logout } = useAuth();
-  const [unreadCount, setUnreadCount] = useState(0);
-  const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [isMobile, setIsMobile] = useState(false);
-  const menuRef = useRef(null);
 
+  const [unreadCount, setUnreadCount] = useState(0);
+  const [menuOpen, setMenuOpen] = useState(false);
+  const [isMobileView, setIsMobileView] = useState(false);
+
+  const dropdownRef = useRef(null);
+
+  // Detect screen size manually instead of relying only on CSS
   useEffect(() => {
-    const checkMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
+    const handleResize = () => {
+      setIsMobileView(window.innerWidth < 1024);
     };
-    
-    checkMobile();
-    window.addEventListener('resize', checkMobile);
-    
-    return () => window.removeEventListener('resize', checkMobile);
+
+    handleResize();
+    window.addEventListener('resize', handleResize);
+
+    return () => window.removeEventListener('resize', handleResize);
   }, []);
 
+  // Fetch notifications whenever user changes
   useEffect(() => {
-    if (user) {
-      fetchNotificationCount();
-    }
+    if (!user) return;
+    loadNotifications();
   }, [user]);
 
+  // Close mobile menu when clicking outside
   useEffect(() => {
-    const handleClickOutside = (event) => {
-      if (menuRef.current && !menuRef.current.contains(event.target)) {
-        setIsMenuOpen(false);
+    const handleOutsideClick = (e) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(e.target)) {
+        setMenuOpen(false);
       }
     };
 
-    if (isMenuOpen) {
-      document.addEventListener('mousedown', handleClickOutside);
+    if (menuOpen) {
+      document.addEventListener('mousedown', handleOutsideClick);
     }
 
     return () => {
-      document.removeEventListener('mousedown', handleClickOutside);
+      document.removeEventListener('mousedown', handleOutsideClick);
     };
-  }, [isMenuOpen]);
+  }, [menuOpen]);
 
-  const fetchNotificationCount = async () => {
+  const loadNotifications = async () => {
     try {
-      const response = await notificationService.getNotifications();
-      setUnreadCount(response.data.unreadCount || 0);
-    } catch (error) {
-      console.error('Error fetching notifications:', error);
+      const res = await notificationService.getNotifications();
+      setUnreadCount(res?.data?.unreadCount || 0);
+    } catch (err) {
+      console.error('Failed to load notifications', err);
     }
   };
 
-  const handleLogout = () => {
+  const handleLogoutClick = () => {
     logout();
-    setIsMenuOpen(false);
+    setMenuOpen(false);
   };
 
-  const toggleMenu = () => {
-    setIsMenuOpen(!isMenuOpen);
+  const toggleMobileMenu = () => {
+    setMenuOpen((prev) => !prev);
   };
 
-  // Desktop Navigation
+  /* =========================
+     Desktop Navigation
+     ========================= */
   const DesktopNav = () => (
     <nav style={styles.nav}>
       <div style={styles.container}>
@@ -76,44 +83,26 @@ export default function Navbar() {
         <div style={styles.links}>
           {user ? (
             <>
-              <Link href="/plans" style={styles.link}>
-                Plans
-              </Link>
+              <Link href="/plans" style={styles.link}>Plans</Link>
 
               {user.role === 'user' && (
                 <>
-                  <Link href="/trainers" style={styles.link}>
-                    Trainers
-                  </Link>
-                  <Link href="/my-trainers" style={styles.link}>
-                    My Trainers
-                  </Link>
-                  <Link href="/feed" style={styles.link}>
-                    My Feed
-                  </Link>
-                  <Link href="/dashboard/user" style={styles.link}>
-                    Dashboard
-                  </Link>
+                  <Link href="/trainers" style={styles.link}>Trainers</Link>
+                  <Link href="/my-trainers" style={styles.link}>My Trainers</Link>
+                  <Link href="/feed" style={styles.link}>My Feed</Link>
+                  <Link href="/dashboard/user" style={styles.link}>Dashboard</Link>
                 </>
               )}
 
               {user.role === 'trainer' && (
                 <>
-                  <Link href="/dashboard/trainer" style={styles.link}>
-                    Dashboard
-                  </Link>
-                  <Link href="/dashboard/trainer/audience" style={styles.link}>
-                    My Audience
-                  </Link>
+                  <Link href="/dashboard/trainer" style={styles.link}>Dashboard</Link>
+                  <Link href="/dashboard/trainer/audience" style={styles.link}>My Audience</Link>
                 </>
               )}
             </>
           ) : (
-            <>
-              <Link href="/login" style={styles.link}>
-                Login
-              </Link>
-            </>
+            <Link href="/login" style={styles.link}>Login</Link>
           )}
         </div>
 
@@ -145,7 +134,9 @@ export default function Navbar() {
     </nav>
   );
 
-  // Mobile Navigation
+  /* =========================
+     Mobile Navigation
+     ========================= */
   const MobileNav = () => (
     <nav style={styles.mobileNav}>
       <div style={styles.mobileContainer}>
@@ -163,31 +154,36 @@ export default function Navbar() {
             </Link>
           )}
 
-          <button 
-            onClick={toggleMenu} 
+          <button
+            onClick={toggleMobileMenu}
             style={styles.menuToggle}
-            aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+            aria-label={menuOpen ? 'Close menu' : 'Open menu'}
           >
             <div style={styles.hamburger}>
-              <span style={{
-                ...styles.hamburgerLine,
-                transform: isMenuOpen ? 'rotate(45deg) translate(5px, 5px)' : 'none'
-              }}></span>
-              <span style={{
-                ...styles.hamburgerLine,
-                opacity: isMenuOpen ? 0 : 1
-              }}></span>
-              <span style={{
-                ...styles.hamburgerLine,
-                transform: isMenuOpen ? 'rotate(-45deg) translate(7px, -6px)' : 'none'
-              }}></span>
+              <span
+                style={{
+                  ...styles.hamburgerLine,
+                  transform: menuOpen ? 'rotate(45deg) translate(5px, 5px)' : 'none'
+                }}
+              ></span>
+              <span
+                style={{
+                  ...styles.hamburgerLine,
+                  opacity: menuOpen ? 0 : 1
+                }}
+              ></span>
+              <span
+                style={{
+                  ...styles.hamburgerLine,
+                  transform: menuOpen ? 'rotate(-45deg) translate(7px, -6px)' : 'none'
+                }}
+              ></span>
             </div>
           </button>
         </div>
 
-        {/* Mobile Menu Dropdown */}
-        {isMenuOpen && (
-          <div ref={menuRef} style={styles.mobileMenu}>
+        {menuOpen && (
+          <div ref={dropdownRef} style={styles.mobileMenu}>
             <div style={styles.mobileMenuContent}>
               {user ? (
                 <>
@@ -200,47 +196,22 @@ export default function Navbar() {
 
                   <div style={styles.mobileDivider}></div>
 
-                  <Link 
-                    href="/plans" 
-                    style={styles.mobileMenuItem}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="mobile-menu-item"
-                  >
+                  <Link href="/plans" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                     📋 Plans
                   </Link>
 
                   {user.role === 'user' && (
                     <>
-                      <Link 
-                        href="/trainers" 
-                        style={styles.mobileMenuItem}
-                        onClick={() => setIsMenuOpen(false)}
-                        className="mobile-menu-item"
-                      >
+                      <Link href="/trainers" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                         👨‍🏫 Trainers
                       </Link>
-                      <Link 
-                        href="/my-trainers" 
-                        style={styles.mobileMenuItem}
-                        onClick={() => setIsMenuOpen(false)}
-                        className="mobile-menu-item"
-                      >
+                      <Link href="/my-trainers" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                         ⭐ My Trainers
                       </Link>
-                      <Link 
-                        href="/feed" 
-                        style={styles.mobileMenuItem}
-                        onClick={() => setIsMenuOpen(false)}
-                        className="mobile-menu-item"
-                      >
+                      <Link href="/feed" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                         📱 My Feed
                       </Link>
-                      <Link 
-                        href="/dashboard/user" 
-                        style={styles.mobileMenuItem}
-                        onClick={() => setIsMenuOpen(false)}
-                        className="mobile-menu-item"
-                      >
+                      <Link href="/dashboard/user" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                         📊 Dashboard
                       </Link>
                     </>
@@ -248,20 +219,10 @@ export default function Navbar() {
 
                   {user.role === 'trainer' && (
                     <>
-                      <Link 
-                        href="/dashboard/trainer" 
-                        style={styles.mobileMenuItem}
-                        onClick={() => setIsMenuOpen(false)}
-                        className="mobile-menu-item"
-                      >
+                      <Link href="/dashboard/trainer" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                         📊 Dashboard
                       </Link>
-                      <Link 
-                        href="/dashboard/trainer/audience" 
-                        style={styles.mobileMenuItem}
-                        onClick={() => setIsMenuOpen(false)}
-                        className="mobile-menu-item"
-                      >
+                      <Link href="/dashboard/trainer/audience" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                         👥 My Audience
                       </Link>
                     </>
@@ -269,12 +230,7 @@ export default function Navbar() {
 
                   <div style={styles.mobileDivider}></div>
 
-                  <Link 
-                    href="/notifications" 
-                    style={styles.mobileMenuItem}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="mobile-menu-item"
-                  >
+                  <Link href="/notifications" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                     🔔 Notifications
                     {unreadCount > 0 && (
                       <span style={styles.mobileMenuBadge}>{unreadCount}</span>
@@ -283,33 +239,19 @@ export default function Navbar() {
 
                   <div style={styles.mobileDivider}></div>
 
-                  <button 
-                    onClick={handleLogout} 
-                    style={styles.mobileLogoutButton}
-                    className="mobile-logout-button"
-                  >
+                  <button onClick={handleLogoutClick} style={styles.mobileLogoutButton}>
                     🚪 Logout
                   </button>
                 </>
               ) : (
                 <>
-                  <Link 
-                    href="/login" 
-                    style={styles.mobileMenuItem}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="mobile-menu-item"
-                  >
+                  <Link href="/login" style={styles.mobileMenuItem} onClick={() => setMenuOpen(false)}>
                     🔑 Login
                   </Link>
-                  
+
                   <div style={styles.mobileDivider}></div>
-                  
-                  <Link 
-                    href="/register" 
-                    style={styles.mobileSignUpButton}
-                    onClick={() => setIsMenuOpen(false)}
-                    className="mobile-signup-button"
-                  >
+
+                  <Link href="/register" style={styles.mobileSignUpButton} onClick={() => setMenuOpen(false)}>
                     ✨ Sign Up Free
                   </Link>
                 </>
@@ -321,299 +263,263 @@ export default function Navbar() {
     </nav>
   );
 
-  return isMobile ? <MobileNav /> : <DesktopNav />;
+  return isMobileView ? <MobileNav /> : <DesktopNav />;
 }
 
 const styles = {
-  // Desktop Styles
   nav: {
     position: 'fixed',
     top: '20px',
     left: '50%',
     transform: 'translateX(-50%)',
     zIndex: 1000,
-    width: 'auto',
-    maxWidth: '95%'
+    width: 'fit-content',
+    maxWidth: '100%',
   },
+
   container: {
-    backgroundColor: 'rgba(37, 99, 235, 0.95)',
-    backdropFilter: 'blur(10px)',
-    border: '1px solid rgba(255, 255, 255, 0.3)',
-    borderRadius: '50px',
-    padding: '0.75rem 1.5rem',
+    backgroundColor: '#2563eb',
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem',
-    boxShadow: '0 8px 32px rgba(0, 0, 0, 0.2)'
+    padding: '1rem 2.2rem',
+    borderRadius: '50px',
+    gap: '2rem',
+    whiteSpace: 'nowrap',
+    flexWrap: 'nowrap',
+    boxShadow: '0 6px 25px rgba(0,0,0,0.18)',
   },
+
   logo: {
     color: 'white',
-    fontSize: '1.15rem',
-    fontWeight: 'bold',
+    fontSize: '1.25rem',
+    fontWeight: '700',
     textDecoration: 'none',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-    whiteSpace: 'nowrap'
   },
+
   divider: {
     width: '1px',
-    height: '24px',
-    backgroundColor: 'rgba(255, 255, 255, 0.3)'
+    height: '26px',
+    backgroundColor: 'rgba(255,255,255,0.35)',
   },
+
   links: {
     display: 'flex',
-    gap: '1.5rem',
-    alignItems: 'center'
+    alignItems: 'center',
+    gap: '1.8rem',
+    whiteSpace: 'nowrap',
+    flexWrap: 'nowrap',
   },
+
   link: {
     color: 'white',
+    fontSize: '0.95rem',
     textDecoration: 'none',
-    whiteSpace: 'nowrap',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-    transition: 'transform 0.2s ease, opacity 0.2s ease',
-    cursor: 'pointer',
-    fontSize: '0.85rem',
     fontWeight: '500',
-    opacity: 0.9
+    opacity: 0.92,
+    padding: '0.25rem 0.15rem',
+    transition: '0.2s ease',
   },
+
   rightSection: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem'
+    gap: '1.2rem',
+    whiteSpace: 'nowrap',
   },
+
   notificationBell: {
     position: 'relative',
+    fontSize: '1.25rem',
     color: 'white',
-    textDecoration: 'none',
     cursor: 'pointer',
-    fontSize: '1.2rem',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-    transition: 'transform 0.2s ease'
+    textDecoration: 'none',
   },
+
   badge: {
     position: 'absolute',
-    top: '-8px',
+    top: '-6px',
     right: '-8px',
     backgroundColor: '#dc2626',
     color: 'white',
+    padding: '2px 6px',
+    fontSize: '0.65rem',
     borderRadius: '50%',
-    padding: '0.125rem 0.375rem',
-    fontSize: '0.7rem',
-    fontWeight: 'bold',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-    minWidth: '18px',
-    textAlign: 'center'
-  },
-  username: {
-    color: 'white',
-    fontWeight: '500',
-    whiteSpace: 'nowrap',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)',
-    fontSize: '0.85rem',
-    maxWidth: '100px',
-    overflow: 'hidden',
-    textOverflow: 'ellipsis'
-  },
-  button: {
-    backgroundColor: 'rgba(255, 255, 255, 0.9)',
-    color: '#2563eb',
-    padding: '0.5rem 1.25rem',
-    borderRadius: '25px',
-    border: 'none',
-    cursor: 'pointer',
-    textDecoration: 'none',
-    fontWeight: '600',
-    whiteSpace: 'nowrap',
-    display: 'inline-block',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
-    fontSize: '0.85rem'
+    fontWeight: '700',
   },
 
-  // Mobile Styles
+  username: {
+    color: 'white',
+    fontSize: '0.9rem',
+    fontWeight: '500',
+    maxWidth: '150px',
+    textOverflow: 'ellipsis',
+    overflow: 'hidden',
+    whiteSpace: 'nowrap',
+  },
+
+  button: {
+    backgroundColor: 'white',
+    color: '#2563eb',
+    padding: '0.55rem 1.4rem',
+    borderRadius: '20px',
+    fontSize: '0.9rem',
+    border: 'none',
+    fontWeight: '600',
+    cursor: 'pointer',
+    transition: '0.2s',
+    boxShadow: '0 3px 8px rgba(0,0,0,0.15)',
+  },
+
+  /* MOBILE BELOW */
   mobileNav: {
     position: 'fixed',
     top: 0,
-    left: 0,
-    right: 0,
-    zIndex: 1000,
     width: '100%',
     padding: '12px 16px',
-    backgroundColor: 'rgba(37, 99, 235, 0.97)',
-    backdropFilter: 'blur(10px)',
-    borderBottom: '1px solid rgba(255, 255, 255, 0.3)',
-    boxShadow: '0 4px 20px rgba(0, 0, 0, 0.25)'
+    backgroundColor: '#2563eb',
+    zIndex: 1000,
   },
+
   mobileContainer: {
     display: 'flex',
-    alignItems: 'center',
     justifyContent: 'space-between',
-    position: 'relative',
-    maxWidth: '100%'
+    alignItems: 'center',
   },
+
   mobileLogo: {
     color: 'white',
     fontSize: '1.2rem',
-    fontWeight: 'bold',
+    fontWeight: '700',
     textDecoration: 'none',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
   },
+
   mobileRightSection: {
     display: 'flex',
     alignItems: 'center',
-    gap: '1rem'
+    gap: '1rem',
   },
+
   mobileNotificationBell: {
     position: 'relative',
+    fontSize: '1.4rem',
     color: 'white',
     textDecoration: 'none',
-    fontSize: '1.4rem',
-    textShadow: '0 2px 4px rgba(0,0,0,0.3)'
   },
+
   mobileBadge: {
     position: 'absolute',
     top: '-6px',
     right: '-6px',
     backgroundColor: '#dc2626',
     color: 'white',
+    padding: '2px 5px',
+    fontSize: '0.7rem',
     borderRadius: '50%',
-    padding: '0.15rem 0.4rem',
-    fontSize: '0.65rem',
-    fontWeight: 'bold',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.2)',
-    minWidth: '18px',
-    textAlign: 'center'
   },
+
   menuToggle: {
     background: 'none',
     border: 'none',
     cursor: 'pointer',
-    padding: '8px',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center'
   },
+
   hamburger: {
     display: 'flex',
     flexDirection: 'column',
     gap: '5px',
-    width: '26px',
-    height: '26px',
-    justifyContent: 'center'
   },
+
   hamburgerLine: {
     width: '26px',
     height: '3px',
     backgroundColor: 'white',
-    borderRadius: '3px',
-    transition: 'all 0.3s ease',
-    transformOrigin: 'center'
+    borderRadius: '2px',
+    transition: '0.3s',
   },
+
   mobileMenu: {
     position: 'absolute',
-    top: 'calc(100% + 12px)',
-    right: '16px',
+    top: '100%',
     left: '16px',
-    zIndex: 1001,
-    animation: 'slideDown 0.3s ease-out'
+    right: '16px',
+    marginTop: '12px',
   },
+
   mobileMenuContent: {
-    backgroundColor: 'rgba(37, 99, 235, 0.98)',
-    backdropFilter: 'blur(20px)',
-    border: '1px solid rgba(255, 255, 255, 0.3)',
-    borderRadius: '16px',
-    padding: '1.25rem',
-    boxShadow: '0 12px 48px rgba(0, 0, 0, 0.35)',
-    maxHeight: 'calc(100vh - 100px)',
-    overflowY: 'auto'
+    backgroundColor: '#2563eb',
+    padding: '1.2rem',
+    borderRadius: '15px',
+    boxShadow: '0 10px 30px rgba(0,0,0,0.25)',
   },
+
   mobileUserInfo: {
+    backgroundColor: 'rgba(255,255,255,0.15)',
     padding: '1rem',
-    backgroundColor: 'rgba(255, 255, 255, 0.15)',
     borderRadius: '12px',
-    marginBottom: '1rem',
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '0.35rem'
   },
+
   mobileUsername: {
     color: 'white',
+    fontSize: '1rem',
     fontWeight: '700',
-    fontSize: '1.1rem',
-    textShadow: '0 1px 2px rgba(0,0,0,0.3)'
   },
+
   mobileUserRole: {
-    color: 'rgba(255, 255, 255, 0.85)',
-    fontSize: '0.9rem',
-    fontWeight: '500'
+    color: 'white',
+    opacity: 0.9,
   },
+
   mobileDivider: {
     height: '1px',
-    backgroundColor: 'rgba(255, 255, 255, 0.25)',
-    margin: '0.85rem 0'
+    backgroundColor: 'rgba(255,255,255,0.25)',
+    margin: '1rem 0',
   },
+
   mobileMenuItem: {
     display: 'flex',
     alignItems: 'center',
-    justifyContent: 'flex-start',
-    gap: '0.85rem',
+    gap: '0.75rem',
+    padding: '0.8rem',
+    borderRadius: '10px',
+    backgroundColor: 'rgba(255,255,255,0.1)',
     color: 'white',
     textDecoration: 'none',
-    padding: '0.9rem 1.1rem',
-    borderRadius: '12px',
-    margin: '0.35rem 0',
-    backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    transition: 'all 0.2s ease',
-    position: 'relative',
+    marginBottom: '0.5rem',
     fontSize: '1rem',
-    fontWeight: '500',
-    textShadow: '0 1px 2px rgba(0,0,0,0.2)'
   },
+
   mobileMenuBadge: {
-    position: 'absolute',
-    right: '1.1rem',
+    marginLeft: 'auto',
     backgroundColor: '#dc2626',
     color: 'white',
-    borderRadius: '12px',
-    padding: '0.2rem 0.6rem',
+    padding: '2px 6px',
+    borderRadius: '10px',
     fontSize: '0.75rem',
-    fontWeight: 'bold',
-    boxShadow: '0 2px 4px rgba(0,0,0,0.25)'
   },
+
   mobileLogoutButton: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.12)',
-    color: 'white',
-    padding: '0.9rem 1.1rem',
+    backgroundColor: 'rgba(255,255,255,0.15)',
+    border: '1px solid rgba(255,255,255,0.4)',
+    padding: '0.85rem',
     borderRadius: '12px',
-    border: '1px solid rgba(255, 255, 255, 0.35)',
-    cursor: 'pointer',
+    color: 'white',
     fontWeight: '600',
-    fontSize: '1rem',
-    display: 'flex',
-    alignItems: 'center',
-    gap: '0.85rem',
-    justifyContent: 'center',
-    transition: 'all 0.2s ease',
-    marginTop: '0.5rem',
-    textShadow: '0 1px 2px rgba(0,0,0,0.2)'
+    cursor: 'pointer',
   },
+
   mobileSignUpButton: {
     width: '100%',
-    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    backgroundColor: 'white',
     color: '#2563eb',
-    padding: '1rem 1.5rem',
+    padding: '1rem',
     borderRadius: '14px',
-    border: 'none',
-    cursor: 'pointer',
-    textDecoration: 'none',
     fontWeight: '700',
-    fontSize: '1.05rem',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: '0.5rem',
-    transition: 'all 0.2s ease',
-    boxShadow: '0 4px 16px rgba(0,0,0,0.2)',
-    marginTop: '0.5rem'
+    textDecoration: 'none',
+    textAlign: 'center',
   }
 };
+
+
+
+
