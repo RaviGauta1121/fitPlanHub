@@ -20,11 +20,20 @@ const app = express();
 connectDatabase();
 
 // CORS configuration – allows frontend to access backend API
+// Allow configuring allowed origins via env (comma-separated), with sensible defaults
+const allowedOrigins = (process.env.ALLOWED_ORIGINS && process.env.ALLOWED_ORIGINS.split(',')) || [
+  'http://localhost:3000',
+  'https://fit-plan-hub-lovat.vercel.app'
+];
+
 app.use(
   cors({
-    origin: [
-      "http://localhost:3000",
-    ],
+    origin: function (origin, callback) {
+      // Allow non-browser requests like server-to-server (no origin)
+      if (!origin) return callback(null, true);
+      if (allowedOrigins.indexOf(origin) !== -1) return callback(null, true);
+      return callback(new Error('CORS policy: Origin not allowed'));
+    },
     credentials: true
   })
 );
