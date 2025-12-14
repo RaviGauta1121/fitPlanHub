@@ -260,7 +260,7 @@ async function seedDatabase() {
 
       for (const plan of userPlans) {
         const startDate = new Date();
-        startDate.setDate(startDate.getDate() - Math.floor(Math.random() * 15)); // Started within last 15 days
+        startDate.setDate(startDate.getDate() - Math.floor(Math.random() * 15));
         
         const subscription = await Subscription.create({
           user: user._id,
@@ -277,7 +277,7 @@ async function seedDatabase() {
     // Create reviews
     console.log('⭐ Creating reviews...');
     for (const subscription of createdSubscriptions) {
-      if (Math.random() > 0.3) { // 70% chance of review
+      if (Math.random() > 0.3) {
         const reviewData = reviewTexts[Math.floor(Math.random() * reviewTexts.length)];
         await Review.create({
           user: subscription.user,
@@ -292,11 +292,11 @@ async function seedDatabase() {
     // Create workout logs
     console.log('🏋️ Creating workout logs...');
     for (const subscription of createdSubscriptions) {
-      const numLogs = Math.floor(Math.random() * 5) + 3; // 3-7 logs per subscription
+      const numLogs = Math.floor(Math.random() * 5) + 3;
       
       for (let i = 0; i < numLogs; i++) {
         const date = new Date();
-        date.setDate(date.getDate() - Math.floor(Math.random() * 20)); // Within last 20 days
+        date.setDate(date.getDate() - Math.floor(Math.random() * 20));
         
         const exerciseList = [
           { exerciseName: 'Squats', setsCompleted: 3, repsCompleted: 12, weight: 135 },
@@ -308,7 +308,7 @@ async function seedDatabase() {
 
         const randomExercises = exerciseList
           .sort(() => 0.5 - Math.random())
-          .slice(0, Math.floor(Math.random() * 3) + 2); // 2-4 exercises
+          .slice(0, Math.floor(Math.random() * 3) + 2);
 
         const moods = ['excellent', 'good', 'average', 'tired', 'exhausted'];
         
@@ -317,8 +317,8 @@ async function seedDatabase() {
           plan: subscription.plan,
           date: date,
           exercises: randomExercises,
-          duration: Math.floor(Math.random() * 60) + 30, // 30-90 minutes
-          caloriesBurned: Math.floor(Math.random() * 400) + 200, // 200-600 calories
+          duration: Math.floor(Math.random() * 60) + 30,
+          caloriesBurned: Math.floor(Math.random() * 400) + 200,
           mood: moods[Math.floor(Math.random() * moods.length)],
           notes: 'Great workout session! Feeling stronger every day.'
         });
@@ -330,20 +330,47 @@ async function seedDatabase() {
 
     // Create notifications
     console.log('🔔 Creating notifications...');
-    for (const user of createdUsers) {
-      await Notification.create({
-        user: user._id,
+    const notificationTypes = [
+      {
         type: 'subscription',
-        message: 'Welcome! Your subscription has been activated.',
-        read: Math.random() > 0.5
-      });
-
-      await Notification.create({
-        user: user._id,
+        title: 'Welcome to FitPlanHub! 🎉',
+        message: 'Your subscription has been activated successfully. Start your fitness journey today!',
+        link: '/dashboard/user'
+      },
+      {
         type: 'achievement',
-        message: 'Congratulations! You completed your first workout.',
-        read: Math.random() > 0.3
-      });
+        title: 'First Workout Complete! 💪',
+        message: 'Congratulations! You completed your first workout. Keep up the great work!',
+        link: '/achievements'
+      },
+      {
+        type: 'reminder',
+        title: 'Time for Your Workout! ⏰',
+        message: "Don't forget to complete today's workout. Your fitness goals are waiting!",
+        link: '/plans'
+      },
+      {
+        type: 'new_plan',
+        title: 'New Plan Available! 🆕',
+        message: 'Your trainer just published a new fitness plan. Check it out now!',
+        link: '/plans'
+      }
+    ];
+
+    for (const user of createdUsers) {
+      const numNotifications = Math.floor(Math.random() * 3) + 2;
+      
+      for (let i = 0; i < numNotifications; i++) {
+        const notif = notificationTypes[i % notificationTypes.length];
+        await Notification.create({
+          user: user._id,
+          type: notif.type,
+          title: notif.title,
+          message: notif.message,
+          link: notif.link,
+          isRead: Math.random() > 0.4
+        });
+      }
     }
     console.log('   ✓ Created notifications for all users');
 
@@ -373,5 +400,4 @@ async function seedDatabase() {
   }
 }
 
-// Run the seed function
 seedDatabase();
