@@ -3,7 +3,7 @@ const dotenv = require('dotenv');
 const cors = require('cors');
 const connectDatabase = require('./config/database');
 
-// Import routes
+// Route imports
 const authRoutes = require('./routes/authRoutes');
 const planRoutes = require('./routes/planRoutes');
 const subscriptionRoutes = require('./routes/subscriptionRoutes');
@@ -14,25 +14,30 @@ const notificationRoutes = require('./routes/notificationRoutes');
 const achievementRoutes = require('./routes/achievementRoutes');
 
 dotenv.config();
-
 const app = express();
 
-// Connect to database
+// Connect MongoDB
 connectDatabase();
 
-// Middleware
-app.use(cors({
-  origin: 'http://localhost:3000',
-  credentials: true
-}));
+// CORS configuration – allows frontend to access backend API
+app.use(
+  cors({
+    origin: [
+      "http://localhost:3000",
+      "https://fitplanhub-frontend.onrender.com"
+    ],
+    credentials: true
+  })
+);
 
+// Body parsers
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-// Root route
+// Root API response
 app.get('/', (req, res) => {
-  res.json({ 
-    message: '✅ FitPlanHub API is running - Enhanced Version',
+  res.json({
+    message: 'FitPlanHub API is running',
     version: '2.0',
     endpoints: {
       auth: '/api/auth',
@@ -47,7 +52,7 @@ app.get('/', (req, res) => {
   });
 });
 
-// API Routes
+// API routes
 app.use('/api/auth', authRoutes);
 app.use('/api/plans', planRoutes);
 app.use('/api/subscriptions', subscriptionRoutes);
@@ -59,25 +64,23 @@ app.use('/api/achievements', achievementRoutes);
 
 // 404 handler
 app.use((req, res) => {
-  res.status(404).json({ 
+  res.status(404).json({
     message: 'Route not found',
-    requestedUrl: req.originalUrl 
+    requestedUrl: req.originalUrl
   });
 });
 
 // Error handler
 app.use((err, req, res, next) => {
   console.error(err.stack);
-  res.status(500).json({ 
-    message: 'Something went wrong!', 
-    error: err.message 
+  res.status(500).json({
+    message: 'Something went wrong',
+    error: err.message
   });
 });
 
 const PORT = process.env.PORT || 5000;
 
 app.listen(PORT, () => {
-  console.log(`\n✅ FitPlanHub Enhanced Server running on port ${PORT}`);
-  console.log(`📍 API Base URL: http://localhost:5000/api`);
-  console.log(`📊 View all endpoints: http://localhost:5000/\n`);
+  console.log(`Server running on port ${PORT}`);
 });
