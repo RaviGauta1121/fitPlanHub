@@ -25,7 +25,7 @@ const userSchema = new mongoose.Schema({
     enum: ['user', 'trainer'],
     default: 'user'
   },
-  followedTrainers: [{
+  following: [{  // CHANGED FROM followedTrainers
     type: mongoose.Schema.Types.ObjectId,
     ref: 'User'
   }],

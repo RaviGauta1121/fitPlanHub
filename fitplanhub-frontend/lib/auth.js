@@ -95,6 +95,17 @@ export const trainerService = {
   getFeed: async () => {
     const response = await api.get('/trainers/feed');
     return response.data;
+  },
+
+  // NEW: Add these methods here in trainerService
+  getMyFollowers: async () => {
+    const response = await api.get('/trainers/my-followers');
+    return response.data;
+  },
+
+  getMySubscribers: async () => {
+    const response = await api.get('/trainers/my-subscribers');
+    return response.data;
   }
 };
 

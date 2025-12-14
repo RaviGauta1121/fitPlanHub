@@ -5,18 +5,25 @@ const {
   followTrainer,
   unfollowTrainer,
   getFollowedTrainers,
-  getPersonalizedFeed
+  getFeed,
+  getMyFollowers,
+  getMySubscribers
 } = require('../controllers/trainerController');
 const { protect } = require('../middleware/authMiddleware');
 const { checkRole } = require('../middleware/roleMiddleware');
 
 const router = express.Router();
 
+// SPECIFIC ROUTES FIRST (before /:id)
 router.get('/', protect, getAllTrainers);
-router.get('/followed', protect, checkRole('user'), getFollowedTrainers);
-router.get('/feed', protect, checkRole('user'), getPersonalizedFeed);
+router.get('/followed', protect, getFollowedTrainers);
+router.get('/feed', protect, getFeed);
+router.get('/my-followers', protect, checkRole('trainer'), getMyFollowers);
+router.get('/my-subscribers', protect, checkRole('trainer'), getMySubscribers);
+
+// DYNAMIC ROUTES LAST
 router.get('/:id', protect, getTrainerById);
-router.post('/:id/follow', protect, checkRole('user'), followTrainer);
-router.delete('/:id/unfollow', protect, checkRole('user'), unfollowTrainer);
+router.post('/:id/follow', protect, followTrainer);
+router.delete('/:id/unfollow', protect, unfollowTrainer);
 
 module.exports = router;
