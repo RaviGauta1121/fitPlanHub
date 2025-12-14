@@ -21,6 +21,7 @@ connectDatabase();
 app.use(
   cors({
     origin: [
+      "https://fit-plan-hub-lovat.vercel.app",
       "http://localhost:3000",
       "https://fit-plan-hub-lovat.vercel.app"
     ],
